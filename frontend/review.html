@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Add Review — Hotel Management</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="dashboard.html" class="brand">Hotel Manager</a>
+      <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="reviews.html">Reviews</a>
+        <a href="review.html" class="active">Add Review</a>
+        <button class="btn btn-sm btn-secondary btn-logout" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <div class="page-wrapper">
+      <div class="card">
+        <h2>Add Review</h2>
+        <p class="subtitle">Share your experience with a room</p>
+
+        <form id="review-form">
+          <div class="form-group">
+            <label for="user_id">User</label>
+            <select id="user_id" required>
+              <option value="" disabled selected>Loading users...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="room_id">Room</label>
+            <select id="room_id" required>
+              <option value="" disabled selected>Loading rooms...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="review_text">Review</label>
+            <textarea id="review_text" rows="4" placeholder="Write your review..." required></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full">Submit Review</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const userData = localStorage.getItem("user");
+      if (!userData) window.location.href = "login.html";
+      try { const u = JSON.parse(userData); if (!u || !u.user_id) window.location.href = "login.html"; } catch { window.location.href = "login.html"; }
+
+      const userSelect = document.getElementById("user_id");
+      const roomSelect = document.getElementById("room_id");
+
+      function populateSelect(selectElement, items, placeholder) {
+        selectElement.innerHTML = `<option value="" disabled selected>${placeholder}</option>`;
+        items.forEach((item) => {
+          const option = document.createElement("option");
+          option.value = item.value;
+          option.textContent = item.label;
+          selectElement.appendChild(option);
+        });
+      }
+
+      function loadUsers() {
+        return fetch("http://localhost:3000/users")
+          .then((res) => res.json())
+          .then((users) => {
+            const items = users.map((u) => ({ value: u.user_id, label: `#${u.user_id} — ${u.name}` }));
+            populateSelect(userSelect, items, "Select user");
+          })
+          .catch(() => { userSelect.innerHTML = '<option value="" disabled selected>Unable to load users</option>'; });
+      }
+
+      function loadRooms() {
+        return fetch("http://localhost:3000/rooms")
+          .then((res) => res.json())
+          .then((rooms) => {
+            const items = rooms.map((r) => ({ value: r.room_id, label: `Room ${r.room_number}` }));
+            populateSelect(roomSelect, items, "Select room");
+          })
+          .catch(() => { roomSelect.innerHTML = '<option value="" disabled selected>Unable to load rooms</option>'; });
+      }
+
+      Promise.all([loadUsers(), loadRooms()]);
+
+      document.getElementById("review-form").addEventListener("submit", function (event) {
+        event.preventDefault();
+        fetch("http://localhost:3000/review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: Number(userSelect.value),
+            room_id: Number(roomSelect.value),
+            review_text: document.getElementById("review_text").value,
+          }),
+        })
+          .then((res) => res.text())
+          .then((message) => alert(message));
+      });
+
+      function logout() {
+        localStorage.removeItem("user");
+        window.location.href = "login.html";
+      }
+    </script>
+  </body>
+</html>

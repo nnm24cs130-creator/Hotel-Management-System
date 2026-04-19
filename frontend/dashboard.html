@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Hotel Management</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <nav class="navbar">
+    <a href="dashboard.html" class="brand">Hotel Manager</a>
+    <div class="nav-links">
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <button class="btn btn-sm btn-secondary btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="card extra-wide">
+      <h1>Dashboard</h1>
+      <p class="subtitle">Manage your hotel operations</p>
+
+      <div class="dash-grid">
+        <a href="rooms.html" class="dash-link">View Rooms</a>
+        <a href="add-rooms.html" class="dash-link">Add Room</a>
+        <a href="bookings.html" class="dash-link">View Bookings</a>
+        <a href="payment.html" class="dash-link">Make Payment</a>
+        <a href="payments.html" class="dash-link">View Payments</a>
+        <a href="service.html" class="dash-link">Add Service</a>
+        <a href="service-request.html" class="dash-link">Service Request</a>
+        <a href="staff.html" class="dash-link">Add Staff</a>
+        <a href="assign-staff.html" class="dash-link">Assign Staff</a>
+        <a href="users.html" class="dash-link">View Users</a>
+        <a href="reviews.html" class="dash-link">All Reviews</a>
+        <a href="review.html" class="dash-link">Add Review</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const userData = localStorage.getItem("user");
+    let currentUser;
+    try { currentUser = JSON.parse(userData); } catch { currentUser = null; }
+    if (!currentUser || !currentUser.user_id) window.location.href = "login.html";
+
+    if (currentUser.role !== "admin") {
+      const allowedLinks = ["View Rooms", "View Bookings", "Make Payment", "Service Request", "All Reviews", "Add Review"];
+      document.querySelectorAll('.dash-link').forEach(link => {
+        if (!allowedLinks.includes(link.textContent.trim())) {
+          link.style.display = 'none';
+        }
+      });
+    } else {
+      document.querySelectorAll('.dash-link').forEach(link => {
+        if (link.textContent.trim() === 'Make Payment') {
+          link.style.display = 'none';
+        }
+      });
+    }
+
+    function logout() {
+      localStorage.removeItem("user");
+      window.location.href = "login.html";
+    }
+  </script>
+</body>
+
+</html>

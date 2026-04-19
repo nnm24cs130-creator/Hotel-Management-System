@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Service Request — Hotel Management</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="dashboard.html" class="brand">Hotel Manager</a>
+      <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="service.html">Service</a>
+        <a href="service-request.html" class="active">Request</a>
+        <button class="btn btn-sm btn-secondary btn-logout" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <div class="page-wrapper">
+      <div class="card">
+        <h2>Service Request</h2>
+        <p class="subtitle">Request a service for a booking</p>
+
+        <form id="request-form">
+          <div class="form-group">
+            <label for="booking_id">Booking</label>
+            <select id="booking_id" required>
+              <option value="" disabled selected>Loading bookings...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="service_id">Service</label>
+            <select id="service_id" required>
+              <option value="" disabled selected>Loading services...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="status">Status</label>
+            <select id="status">
+              <option value="pending">Pending</option>
+              <option value="in progress">In Progress</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full">Submit Request</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const userData = localStorage.getItem("user");
+      if (!userData) window.location.href = "login.html";
+      try { const u = JSON.parse(userData); if (!u || !u.user_id) window.location.href = "login.html"; } catch { window.location.href = "login.html"; }
+
+      const bookingSelect = document.getElementById("booking_id");
+      const serviceSelect = document.getElementById("service_id");
+
+      function populateSelect(selectElement, items, placeholder) {
+        selectElement.innerHTML = `<option value="" disabled selected>${placeholder}</option>`;
+        items.forEach((item) => {
+          const option = document.createElement("option");
+          option.value = item.value;
+          option.textContent = item.label;
+          selectElement.appendChild(option);
+        });
+      }
+
+      function loadBookings() {
+        return fetch("http://localhost:3000/booking")
+          .then((res) => res.json())
+          .then((bookings) => {
+            const items = bookings.map((b) => ({
+              value: b.booking_id,
+              label: `#${b.booking_id} - ${b.user_name || "Guest"}`,
+            }));
+            populateSelect(bookingSelect, items, "Select a booking");
+          })
+          .catch(() => {
+            bookingSelect.innerHTML = '<option value="" disabled selected>Unable to load bookings</option>';
+          });
+      }
+
+      function loadServices() {
+        return fetch("http://localhost:3000/service")
+          .then((res) => res.json())
+          .then((services) => {
+            const items = services.map((s) => ({
+              value: s.service_id,
+              label: `${s.service_name} — ₹${s.price}`,
+            }));
+            populateSelect(serviceSelect, items, "Select a service");
+          })
+          .catch(() => {
+            serviceSelect.innerHTML = '<option value="" disabled selected>Unable to load services</option>';
+          });
+      }
+
+      Promise.all([loadBookings(), loadServices()]);
+
+      document.getElementById("request-form").addEventListener("submit", function (event) {
+        event.preventDefault();
+        fetch("http://localhost:3000/service-request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            booking_id: bookingSelect.value,
+            service_id: serviceSelect.value,
+            status: document.getElementById("status").value,
+          }),
+        })
+          .then((res) => res.text())
+          .then((message) => alert(message));
+      });
+
+      function logout() {
+        localStorage.removeItem("user");
+        window.location.href = "login.html";
+      }
+    </script>
+  </body>
+</html>

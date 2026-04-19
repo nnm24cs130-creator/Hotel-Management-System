@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bookings — Hotel Management</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <nav class="navbar">
+    <a href="dashboard.html" class="brand">Hotel Manager</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="rooms.html">Rooms</a>
+      <a href="bookings.html" class="active">Bookings</a>
+      <a href="payment.html">Payment</a>
+      <button class="btn btn-sm btn-secondary btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="card wide">
+      <h1>Bookings</h1>
+      <p class="subtitle">View and manage all room bookings</p>
+
+      <div id="bookings" class="booking-list"></div>
+    </div>
+  </div>
+
+  <script>
+    const userData = localStorage.getItem("user");
+    let currentUser = null;
+    if (!userData) window.location.href = "login.html";
+    try { currentUser = JSON.parse(userData); if (!currentUser || !currentUser.user_id) window.location.href = "login.html"; } catch { window.location.href = "login.html"; }
+
+    if (currentUser && currentUser.role !== "admin") {
+      document.querySelectorAll('.nav-links a').forEach(link => {
+        if (link.textContent !== 'Dashboard' && link.textContent !== 'Rooms' && link.textContent !== 'Bookings') {
+          link.style.display = 'none';
+        }
+      });
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "N/A";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString("en-US", {
+        year: "numeric", month: "short", day: "2-digit",
+      });
+    }
+
+    fetch(`http://localhost:3000/booking?user_id=${currentUser.user_id}&role=${currentUser.role}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.length) {
+          document.getElementById("bookings").innerHTML = '<p class="subtitle">No bookings found.</p>';
+          return;
+        }
+
+        let output = "";
+        data.forEach((b) => {
+          output += `
+          <div class="booking-card">
+            <div class="booking-info">
+              <p><strong>Booking #${b.booking_id}</strong></p>
+              <p>User: ${b.user_name} (ID ${b.user_id})</p>
+              <p>Room: ${b.room_number} &nbsp;|&nbsp; Check-in: ${formatDateTime(b.check_in_date)} &nbsp;|&nbsp; Check-out: ${formatDateTime(b.check_out_date)}</p>
+              <p>Total: <strong>₹${b.total_price || "N/A"}</strong></p>
+            </div>
+            ${currentUser.role === 'admin' ? `<button class="btn btn-sm btn-danger" onclick="deleteBooking(${b.booking_id})">Delete</button>` : ''}
+          </div>`;
+        });
+
+        document.getElementById("bookings").innerHTML = output;
+      });
+
+    function deleteBooking(bookingId) {
+      if (!confirm("Delete this booking?")) return;
+      fetch(`http://localhost:3000/booking/${bookingId}`, { method: "DELETE" })
+        .then((res) => res.text())
+        .then((message) => { alert(message); location.reload(); });
+    }
+
+    function logout() {
+      localStorage.removeItem("user");
+      window.location.href = "login.html";
+    }
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment History — Hotel Management</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="dashboard.html" class="brand">Hotel Manager</a>
+      <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="payment.html">Payment</a>
+        <a href="payments.html" class="active">History</a>
+        <button class="btn btn-sm btn-secondary btn-logout" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <div class="page-wrapper">
+      <div class="card extra-wide">
+        <h1>Payment History</h1>
+        <p class="subtitle">View all completed and pending payments</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Booking</th>
+                <th>User</th>
+                <th>Room</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="payments-table-body">
+              <tr><td colspan="7" class="text-center">Loading payments...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const userData = localStorage.getItem("user");
+      if (!userData) window.location.href = "login.html";
+      try { const u = JSON.parse(userData); if (!u || !u.user_id) window.location.href = "login.html"; } catch { window.location.href = "login.html"; }
+
+      function loadPayments() {
+        fetch("http://localhost:3000/payment")
+          .then((res) => res.json())
+          .then((payments) => {
+            const tbody = document.getElementById("payments-table-body");
+            if (!payments || payments.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="7" class="text-center">No payments found.</td></tr>';
+              return;
+            }
+            tbody.innerHTML = payments.map((p) => `
+              <tr>
+                <td>${p.payment_id}</td>
+                <td>#${p.booking_id}</td>
+                <td>${p.user_name}</td>
+                <td>${p.room_number}</td>
+                <td><strong>₹${p.amount}</strong></td>
+                <td>${p.payment_method}</td>
+                <td><span class="status-badge ${p.payment_status === 'paid' ? 'status-available' : 'status-booked'}">${p.payment_status}</span></td>
+              </tr>`).join("");
+          })
+          .catch(() => {
+            document.getElementById("payments-table-body").innerHTML =
+              '<tr><td colspan="7" class="text-center">Unable to load payments.</td></tr>';
+          });
+      }
+
+      function logout() {
+        localStorage.removeItem("user");
+        window.location.href = "login.html";
+      }
+
+      loadPayments();
+    </script>
+  </body>
+</html>

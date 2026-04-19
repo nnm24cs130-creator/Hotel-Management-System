@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add Service — Hotel Management</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <nav class="navbar">
+    <a href="dashboard.html" class="brand">Hotel Manager</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="service.html" class="active">Service</a>
+      <a href="service-request.html">Request</a>
+      <button class="btn btn-sm btn-secondary btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="card">
+      <h2>Add Service</h2>
+      <p class="subtitle">Register a new hotel service</p>
+
+      <form id="service-form">
+        <div class="form-group">
+          <label for="service_name">Select Service</label>
+          <select id="service_name" required>
+            <option value="" disabled selected>Select a service</option>
+            <option value="Room Cleaning" data-price="500">Room Cleaning — ₹500</option>
+            <option value="Laundry Service" data-price="800">Laundry Service — ₹800</option>
+            <option value="Food Delivery" data-price="1200">Food Delivery — ₹1,200</option>
+            <option value="Spa Massage" data-price="2500">Spa Massage — ₹2,500</option>
+            <option value="Airport Pickup" data-price="1800">Airport Pickup — ₹1,800</option>
+            <option value="Extra Bed Setup" data-price="900">Extra Bed Setup — ₹900</option>
+            <option value="Minibar Restock" data-price="700">Minibar Restock — ₹700</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="price">Price (₹)</label>
+          <input type="number" id="price" readonly required />
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full">Save Service</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const userData = localStorage.getItem("user");
+    if (!userData) window.location.href = "login.html";
+    try { const u = JSON.parse(userData); if (!u || !u.user_id) window.location.href = "login.html"; } catch { window.location.href = "login.html"; }
+
+    const serviceSelect = document.getElementById("service_name");
+    const priceInput = document.getElementById("price");
+
+    serviceSelect.addEventListener("change", () => {
+      const selectedOption = serviceSelect.options[serviceSelect.selectedIndex];
+      priceInput.value = Number(selectedOption.dataset.price || 0);
+    });
+
+    document.getElementById("service-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      fetch("http://localhost:3000/service", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          service_name: serviceSelect.value,
+          price: Number(priceInput.value),
+        }),
+      })
+        .then((res) => res.text())
+        .then((message) => alert(message));
+    });
+
+    function logout() {
+      localStorage.removeItem("user");
+      window.location.href = "login.html";
+    }
+  </script>
+</body>
+
+</html>

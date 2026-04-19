@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>All Reviews — Hotel Management</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="dashboard.html" class="brand">Hotel Manager</a>
+      <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="reviews.html" class="active">Reviews</a>
+        <a href="review.html">Add Review</a>
+        <button class="btn btn-sm btn-secondary btn-logout" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <div class="page-wrapper">
+      <div class="card extra-wide">
+        <h1>Review History</h1>
+        <p class="subtitle">All guest reviews for rooms</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>User</th>
+                <th>Room</th>
+                <th>Review</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="review-table-body">
+              <tr><td colspan="5" class="text-center">Loading reviews...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const userData = localStorage.getItem("user");
+      if (!userData) window.location.href = "login.html";
+      try { const u = JSON.parse(userData); if (!u || !u.user_id) window.location.href = "login.html"; } catch { window.location.href = "login.html"; }
+
+      function deleteReview(id) {
+        if (!confirm("Delete this review?")) return;
+        fetch(`http://localhost:3000/reviews/${id}`, { method: "DELETE" })
+          .then((res) => res.text())
+          .then((message) => { alert(message); loadReviews(); })
+          .catch(() => alert("Unable to delete review."));
+      }
+
+      function loadReviews() {
+        fetch("http://localhost:3000/reviews")
+          .then((res) => res.json())
+          .then((reviews) => {
+            const tbody = document.getElementById("review-table-body");
+            if (!reviews || reviews.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="5" class="text-center">No reviews found.</td></tr>';
+              return;
+            }
+            tbody.innerHTML = reviews.map((r, i) => `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${r.user_name} <span style="color: var(--text-muted)">(#${r.user_id})</span></td>
+                <td>${r.room_number}</td>
+                <td>${r.review_text}</td>
+                <td><button class="btn btn-sm btn-danger" onclick="deleteReview(${r.review_id})">Delete</button></td>
+              </tr>`).join("");
+          })
+          .catch(() => {
+            document.getElementById("review-table-body").innerHTML =
+              '<tr><td colspan="5" class="text-center">Unable to load reviews.</td></tr>';
+          });
+      }
+
+      function logout() {
+        localStorage.removeItem("user");
+        window.location.href = "login.html";
+      }
+
+      loadReviews();
+    </script>
+  </body>
+</html>

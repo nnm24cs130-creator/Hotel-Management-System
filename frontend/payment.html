@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment — Hotel Management</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="dashboard.html" class="brand">Hotel Manager</a>
+      <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="bookings.html">Bookings</a>
+        <a href="payment.html" class="active">Payment</a>
+        <a href="payments.html">History</a>
+        <button class="btn btn-sm btn-secondary btn-logout" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <div class="page-wrapper">
+      <div class="card">
+        <h2>Make Payment</h2>
+        <p class="subtitle">Select a booking and complete the payment</p>
+
+        <form id="payment-form">
+          <div class="form-group">
+            <label for="booking_id">Booking</label>
+            <select id="booking_id" required>
+              <option value="">Select booking</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="amount">Amount (₹)</label>
+            <input type="number" id="amount" readonly />
+          </div>
+
+          <div class="form-group">
+            <label for="payment_method">Payment Method</label>
+            <select id="payment_method">
+              <option value="Credit Card">Credit Card</option>
+              <option value="Debit Card">Debit Card</option>
+              <option value="UPI">UPI</option>
+              <option value="Cash">Cash</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="status-group">
+            <label for="payment_status">Payment Status</label>
+            <select id="payment_status">
+              <option value="paid">Paid</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full">Submit Payment</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const userData = localStorage.getItem("user");
+      if (!userData) window.location.href = "login.html";
+      let currentUser;
+      try { currentUser = JSON.parse(userData); if (!currentUser || !currentUser.user_id) window.location.href = "login.html"; } catch { window.location.href = "login.html"; }
+
+      // RBAC: Hide History link and Payment Status field for guests
+      if (currentUser.role !== "admin") {
+        document.querySelectorAll('.nav-links a').forEach(link => {
+          if (link.textContent === 'History') link.style.display = 'none';
+        });
+        document.getElementById("status-group").style.display = 'none';
+        document.getElementById("payment_status").value = 'paid'; // Force paid status
+      }
+
+      const bookingPrices = {};
+
+      function calculateTotalPrice(booking) {
+        const roomPrice = Number(booking.room_price);
+        const checkIn = new Date(booking.check_in_date);
+        const checkOut = new Date(booking.check_out_date);
+        if (Number.isNaN(roomPrice) || Number.isNaN(checkIn.getTime()) || Number.isNaN(checkOut.getTime())) return "";
+        const nights = Math.round((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+        if (nights <= 0) return "";
+        return roomPrice * nights;
+      }
+
+      function loadBookings() {
+        fetch(`http://localhost:3000/booking?user_id=${currentUser.user_id}&role=${currentUser.role}`)
+          .then((res) => res.json())
+          .then((data) => {
+            const bookingSelect = document.getElementById("booking_id");
+            data.forEach((booking) => {
+              const option = document.createElement("option");
+              option.value = booking.booking_id;
+              option.textContent = `#${booking.booking_id} - Room ${booking.room_number} - ₹${calculateTotalPrice(booking)}`;
+              bookingSelect.appendChild(option);
+              bookingPrices[booking.booking_id] = calculateTotalPrice(booking);
+            });
+          });
+      }
+
+      document.getElementById("booking_id").addEventListener("change", function () {
+        document.getElementById("amount").value = bookingPrices[this.value] || "";
+      });
+
+      document.getElementById("payment-form").addEventListener("submit", function (event) {
+        event.preventDefault();
+        const bookingId = document.getElementById("booking_id").value;
+        const amount = Number(document.getElementById("amount").value);
+        if (!bookingId || !amount) return alert("Please select a booking and confirm the amount.");
+
+        fetch("http://localhost:3000/payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            booking_id: bookingId,
+            amount,
+            payment_method: document.getElementById("payment_method").value,
+            payment_status: document.getElementById("payment_status").value,
+          }),
+        })
+          .then((res) => res.text())
+          .then((message) => alert(message));
+      });
+
+      function logout() {
+        localStorage.removeItem("user");
+        window.location.href = "login.html";
+      }
+
+      loadBookings();
+    </script>
+  </body>
+</html>

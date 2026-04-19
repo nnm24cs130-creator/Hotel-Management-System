@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Users — Hotel Management</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <nav class="navbar">
+    <a href="dashboard.html" class="brand">Hotel Manager</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="users.html" class="active">Users</a>
+      <button class="btn btn-sm btn-secondary btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="card wide">
+      <h1>Registered Users</h1>
+      <p class="subtitle">All users on the platform</p>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Name</th>
+              <th>Email</th>
+            </tr>
+          </thead>
+          <tbody id="users-table-body">
+            <tr>
+              <td colspan="3" class="text-center">Loading users...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const userData = localStorage.getItem("user");
+    if (!userData) window.location.href = "login.html";
+    try { const u = JSON.parse(userData); if (!u || !u.user_id) window.location.href = "login.html"; } catch { window.location.href = "login.html"; }
+
+    function loadUsers() {
+      fetch("http://localhost:3000/users")
+        .then((res) => res.json())
+        .then((users) => {
+          const tbody = document.getElementById("users-table-body");
+          if (!users || users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center">No users found.</td></tr>';
+            return;
+          }
+          tbody.innerHTML = users.map((user) => `
+              <tr>
+                <td>${user.user_id}</td>
+                <td>${user.name}</td>
+                <td>${user.email}</td>
+              </tr>`).join("");
+        })
+        .catch(() => {
+          document.getElementById("users-table-body").innerHTML =
+            '<tr><td colspan="3" class="text-center">Unable to load users.</td></tr>';
+        });
+    }
+
+    function logout() {
+      localStorage.removeItem("user");
+      window.location.href = "login.html";
+    }
+
+    loadUsers();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Assign Staff — Hotel Management</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="dashboard.html" class="brand">Hotel Manager</a>
+      <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="staff.html">Staff</a>
+        <a href="assign-staff.html" class="active">Assign</a>
+        <button class="btn btn-sm btn-secondary btn-logout" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <div class="page-wrapper">
+      <div class="card">
+        <h2>Assign Staff</h2>
+        <p class="subtitle">Assign a staff member to a room</p>
+
+        <form id="assign-form">
+          <div class="form-group">
+            <label for="staff_id">Staff Member</label>
+            <select id="staff_id" required>
+              <option value="" disabled selected>Loading staff...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="room_id">Room</label>
+            <select id="room_id" required>
+              <option value="" disabled selected>Loading rooms...</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full">Assign</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const userData = localStorage.getItem("user");
+      if (!userData) window.location.href = "login.html";
+      try { const u = JSON.parse(userData); if (!u || !u.user_id) window.location.href = "login.html"; } catch { window.location.href = "login.html"; }
+
+      const staffSelect = document.getElementById("staff_id");
+      const roomSelect = document.getElementById("room_id");
+
+      function populateSelect(selectElement, items, placeholder) {
+        selectElement.innerHTML = `<option value="" disabled selected>${placeholder}</option>`;
+        items.forEach((item) => {
+          const option = document.createElement("option");
+          option.value = item.id;
+          option.textContent = item.label;
+          selectElement.appendChild(option);
+        });
+      }
+
+      function loadStaff() {
+        return fetch("http://localhost:3000/staff")
+          .then((res) => res.json())
+          .then((staff) => {
+            const items = staff.map((m) => ({
+              id: m.staff_id,
+              label: `${m.name} (${m.role || "Staff"})`,
+            }));
+            populateSelect(staffSelect, items, "Select staff member");
+          })
+          .catch(() => { staffSelect.innerHTML = '<option value="" disabled selected>Unable to load staff</option>'; });
+      }
+
+      function loadRooms() {
+        return fetch("http://localhost:3000/rooms")
+          .then((res) => res.json())
+          .then((rooms) => {
+            const items = rooms.map((r) => ({
+              id: r.room_id,
+              label: `Room #${r.room_number} — ${r.status || "Unknown"}`,
+            }));
+            populateSelect(roomSelect, items, "Select room");
+          })
+          .catch(() => { roomSelect.innerHTML = '<option value="" disabled selected>Unable to load rooms</option>'; });
+      }
+
+      Promise.all([loadStaff(), loadRooms()]);
+
+      document.getElementById("assign-form").addEventListener("submit", function (event) {
+        event.preventDefault();
+        fetch("http://localhost:3000/assign-staff", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            staff_id: staffSelect.value,
+            room_id: roomSelect.value,
+          }),
+        })
+          .then((res) => res.text())
+          .then((message) => alert(message));
+      });
+
+      function logout() {
+        localStorage.removeItem("user");
+        window.location.href = "login.html";
+      }
+    </script>
+  </body>
+</html>

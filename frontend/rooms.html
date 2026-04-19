@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rooms — Hotel Management</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <nav class="navbar">
+    <a href="dashboard.html" class="brand">Hotel Manager</a>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="rooms.html" class="active">Rooms</a>
+      <a href="bookings.html">Bookings</a>
+      <a href="payment.html">Payment</a>
+      <button class="btn btn-sm btn-secondary btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="card extra-wide">
+      <h1>Available Rooms</h1>
+      <p class="subtitle">Browse, book, edit, or manage rooms</p>
+      <div id="rooms" class="room-list"></div>
+    </div>
+  </div>
+
+  <script>
+    const userData = localStorage.getItem("user");
+    let currentUser;
+    if (!userData) window.location.href = "login.html";
+    try { currentUser = JSON.parse(userData); if (!currentUser || !currentUser.user_id) window.location.href = "login.html"; } catch { window.location.href = "login.html"; }
+
+    // Hide admin links from guests
+    if (currentUser.role !== "admin") {
+      document.querySelectorAll('.nav-links a').forEach(link => {
+        if (link.textContent !== 'Dashboard' && link.textContent !== 'Rooms' && link.textContent !== 'Bookings') {
+          link.style.display = 'none';
+        }
+      });
+      const subtitle = document.querySelector('.subtitle');
+      if(subtitle) subtitle.textContent = "Browse and book rooms";
+    }
+
+    function logout() {
+      localStorage.removeItem("user");
+      window.location.href = "login.html";
+    }
+
+    let allRooms = [];
+
+    function loadRooms() {
+      fetch("http://localhost:3000/rooms")
+        .then((res) => res.json())
+        .then((data) => {
+          allRooms = data;
+          renderRooms();
+        });
+    }
+
+    function renderRooms() {
+      let output = "";
+      allRooms.forEach((room) => {
+        const statusClass = room.status === "available" ? "status-available" : "status-booked";
+        output += `
+        <div class="room-card" id="room-${room.room_id}">
+          <div class="room-header">
+            <span class="room-number">Room ${room.room_number}</span>
+            <span class="room-type">${room.type_name}</span>
+          </div>
+          <div class="room-price">₹${room.price} <span>/ night</span></div>
+          <span class="status-badge ${statusClass}">${room.status}</span>
+          <div class="room-actions">
+            ${room.status === "available"
+            ? `<button class="btn btn-sm btn-primary" onclick="showBookForm(${room.room_id}, ${room.price})">Book</button>`
+            : `<button class="btn btn-sm btn-secondary" disabled style="opacity:0.5;cursor:not-allowed">Booked</button>`
+          }
+            ${currentUser.role === 'admin' ? `
+            <button class="btn btn-sm btn-secondary" onclick="showEditForm(${room.room_id})">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteRoom(${room.room_id})">Delete</button>
+            ` : ''}
+          </div>
+          <div id="form-area-${room.room_id}"></div>
+        </div>`;
+      });
+      document.getElementById("rooms").innerHTML = output;
+    }
+
+    function deleteRoom(id) {
+      fetch(`http://localhost:3000/rooms/${id}`, { method: "DELETE" })
+        .then(() => loadRooms());
+    }
+
+    function closeAllForms() {
+      allRooms.forEach((r) => {
+        const el = document.getElementById(`form-area-${r.room_id}`);
+        if (el) el.innerHTML = "";
+      });
+    }
+
+    function showBookForm(roomId, roomPrice) {
+      const area = document.getElementById(`form-area-${roomId}`);
+      if (area.innerHTML) { area.innerHTML = ""; return; }
+      closeAllForms();
+      area.innerHTML = `
+          <div class="divider"></div>
+          <div class="form-group">
+            <label>Check-in Date</label>
+            <input type="date" id="checkin-${roomId}" />
+          </div>
+          <div class="form-group">
+            <label>Check-out Date</label>
+            <input type="date" id="checkout-${roomId}" />
+          </div>
+          <p id="book-msg-${roomId}" style="font-size:0.82rem;color:var(--danger);margin-bottom:8px;"></p>
+          <div class="btn-group">
+            <button class="btn btn-sm btn-primary" onclick="submitBooking(${roomId}, ${roomPrice})">Confirm Booking</button>
+            <button class="btn btn-sm btn-secondary" onclick="document.getElementById('form-area-${roomId}').innerHTML=''">Cancel</button>
+          </div>`;
+    }
+
+    function submitBooking(roomId, roomPrice) {
+      const checkIn = document.getElementById(`checkin-${roomId}`).value;
+      const checkOut = document.getElementById(`checkout-${roomId}`).value;
+      const msgEl = document.getElementById(`book-msg-${roomId}`);
+
+      if (!checkIn || !checkOut) { msgEl.textContent = "Please select both dates."; return; }
+
+      const nights = Math.round((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
+      if (nights <= 0) { msgEl.textContent = "Check-out must be after check-in."; return; }
+
+      fetch("http://localhost:3000/booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: currentUser.user_id,
+          room_id: roomId,
+          check_in: checkIn,
+          check_out: checkOut,
+          total_price: Number(roomPrice) * nights,
+        }),
+      }).then(() => loadRooms());
+    }
+
+    function showEditForm(id) {
+      const room = allRooms.find((r) => r.room_id === id);
+      if (!room) return;
+      const area = document.getElementById(`form-area-${id}`);
+      if (area.innerHTML) { area.innerHTML = ""; return; }
+      closeAllForms();
+      const isBooked = room.status === "Booked";
+      area.innerHTML = `
+          <div class="divider"></div>
+          <div class="form-group">
+            <label>Room Number</label>
+            <input type="text" id="edit-num-${id}" value="${room.room_number}" />
+          </div>
+          <div class="form-group">
+            <label>Type</label>
+            <select id="edit-type-${id}">
+              <option value="1" ${room.type_id == 1 ? "selected" : ""}>1 — Single (₹5000)</option>
+              <option value="2" ${room.type_id == 2 ? "selected" : ""}>2 — Double (₹8000)</option>
+              <option value="3" ${room.type_id == 3 ? "selected" : ""}>3 — Deluxe (₹10000)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            ${isBooked
+          ? `<input type="text" value="Booked" readonly />`
+          : `<select id="edit-status-${id}">
+                  <option value="available" ${room.status === "available" ? "selected" : ""}>Available</option>
+                  <option value="Booked" ${room.status === "Booked" ? "selected" : ""}>Booked</option>
+                </select>`
+        }
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-sm btn-primary" onclick="submitEdit(${id}, ${isBooked})">Save</button>
+            <button class="btn btn-sm btn-secondary" onclick="document.getElementById('form-area-${id}').innerHTML=''">Cancel</button>
+          </div>`;
+    }
+
+    function submitEdit(id, isBooked) {
+      const roomNumber = document.getElementById(`edit-num-${id}`).value;
+      const typeId = document.getElementById(`edit-type-${id}`).value;
+      const status = isBooked ? "Booked" : document.getElementById(`edit-status-${id}`).value;
+
+      fetch(`http://localhost:3000/rooms/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ room_number: roomNumber, status, type_id: Number(typeId) }),
+      }).then(() => loadRooms());
+    }
+
+    loadRooms();
+  </script>
+</body>
+
+</html>
